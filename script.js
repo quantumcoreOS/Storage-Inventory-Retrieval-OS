@@ -1149,8 +1149,12 @@ async function handleCloudShare() {
     let apiKey = localStorage.getItem('jsonbin_key');
     if (!apiKey) {
         apiKey = await showInputModal("API KEY REQUIRED", "ENTER JSONBIN.IO MASTER KEY", "ONE-TIME SETUP");
-        if (apiKey) localStorage.setItem('jsonbin_key', apiKey);
-        else return;
+        if (apiKey) {
+            apiKey = apiKey.trim();
+            localStorage.setItem('jsonbin_key', apiKey);
+        } else return;
+    } else {
+        apiKey = apiKey.trim();
     }
 
     showNotification("GENERATING LINK...");
@@ -1174,7 +1178,10 @@ async function handleCloudShare() {
             })
         });
 
-        if (!res.ok) throw new Error("Upload Failed");
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: "Upload Failed" }));
+            throw new Error(err.message || "Upload Failed");
+        }
         
         const json = await res.json();
         const binId = json.metadata.id;
@@ -1189,8 +1196,8 @@ async function handleCloudShare() {
         
     } catch (e) {
         console.error(e);
-        showNotification("CLOUD UPLOAD FAILED");
-        if(confirm("API Key might be invalid. Reset key?")) localStorage.removeItem('jsonbin_key');
+        showNotification("UPLOAD FAILED");
+        if(confirm(`Error: ${e.message}\n\nAPI Key might be invalid. Reset key?`)) localStorage.removeItem('jsonbin_key');
     }
 }
 
