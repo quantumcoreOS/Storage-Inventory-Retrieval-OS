@@ -9,10 +9,10 @@ const SYSTEM_CONFIG = {
 };
 
 async function init() {
-    const config = { locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` };
-    SQL = await initSqlJs(config);
-    
     try {
+        const config = { locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` };
+        SQL = await initSqlJs(config);
+
         const store = await getDBStore('readonly');
         const savedData = await new Promise((resolve) => {
             const req = store.get(SYSTEM_CONFIG.DB.KEY);
@@ -25,6 +25,7 @@ async function init() {
             checkAuth();
         } else {
             alert("NO DATABASE FOUND. Please initialize the app in index.html first.");
+            window.location.href = 'index.html';
         }
     } catch (e) { console.error(e); alert("DB Error: " + e.message); }
 }
@@ -93,6 +94,11 @@ window.handleMasterRegister = async () => {
 function getDBStore(mode) {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(SYSTEM_CONFIG.DB.NAME, 1);
+        request.onupgradeneeded = (e) => {
+            if (!e.target.result.objectStoreNames.contains(SYSTEM_CONFIG.DB.STORE)) {
+                e.target.result.createObjectStore(SYSTEM_CONFIG.DB.STORE);
+            }
+        };
         request.onsuccess = (e) => {
             const db = e.target.result;
             const tx = db.transaction(SYSTEM_CONFIG.DB.STORE, mode);
