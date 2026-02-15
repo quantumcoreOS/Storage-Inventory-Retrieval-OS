@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storage Inventory & Retrieval System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="bg-scanline"></div>
+    
+    <div id="notification" class="notification">
+        <i class="fas fa-check-circle"></i>
+        <span id="notification-text"></span>
+    </div>
+
+    <div id="auth-page" class="auth-page active">
+        <div class="auth-container">
+            <div class="auth-box">
+                <h1 class="glitch-text" style="text-align: center; color: var(--primary);">Storage Inventory & Retrieval System</h1>
+                
+                <div id="login-form" class="auth-form active">
+                    <h2 style="text-align: center; color: var(--primary); margin-bottom: 20px;">IDENTITY VERIFICATION</h2>
+                    <input type="text" id="login-username" class="input-cyber" placeholder="OPERATOR ID">
+                    <div style="position: relative; width: 100%; margin-bottom: 10px;">
+                        <input type="password" id="login-password" class="input-cyber" placeholder="ACCESS KEY" style="padding-right: 40px; margin-bottom: 0;">
+                        <i class="fas fa-eye" onclick="togglePassword('login-password', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--primary); z-index: 5;"></i>
+                    </div>
+                    <div id="login-error" class="error-message" style="display:none;"></div>
+                    <button class="btn-cyber-main" onclick="handleLogin()" style="width: 100%; margin-top: 10px;">AUTHENTICATE</button>
+                    <p style="text-align: center; margin-top: 15px; font-size: 0.8rem;">NEW UNIT? <button class="link-btn" onclick="toggleAuthMode()">INITIALIZE REGISTRATION</button></p>
+                </div>
+
+                <div id="register-form" class="auth-form">
+                    <h2 style="text-align: center; color: var(--primary); margin-bottom: 20px;">NEW OPERATOR</h2>
+                    <input type="text" id="reg-username" class="input-cyber" placeholder="ASSIGN USERNAME">
+                    <div style="position: relative; width: 100%; margin-bottom: 10px;">
+                        <input type="password" id="reg-password" class="input-cyber" placeholder="ASSIGN PASSWORD" style="padding-right: 40px; margin-bottom: 0;">
+                        <i class="fas fa-eye" onclick="togglePassword('reg-password', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--primary); z-index: 5;"></i>
+                    </div>
+                    <div id="reg-error" class="error-message" style="display:none;"></div>
+                    <button class="btn-cyber-main" onclick="handleRegister()" style="width: 100%; margin-top: 10px;">CREATE RECORD</button>
+                    <p style="text-align: center; margin-top: 15px; font-size: 0.8rem;">EXISTING UNIT? <button class="link-btn" onclick="toggleAuthMode()">RETURN TO LOGIN</button></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="sidebar" id="app-sidebar" style="display: none;">
+        <div class="sidebar-header" style="padding: 20px;"> 
+            <span class="brand-title" style="color: var(--primary); font-weight: 900; letter-spacing: 2px;">Storage Inventory & Retrieval System</span>
+            <div id="server-status" style="font-size: 0.7rem; margin-top: 5px; color: var(--primary);">
+                <i class="fas fa-circle-notch fa-spin"></i> SYNCING...
+            </div>
+        </div>
+        <div class="nav-container" style="display: flex; flex-direction: column; height: calc(100% - 100px);">
+            <ul class="nav-links" style="list-style: none; padding: 20px; flex-grow: 1;">
+                <li><button id="btn-nav-dashboard" class="nav-btn active" onclick="showSection('dashboard')"><i class="fas fa-terminal"></i> DASHBOARD</button></li>
+                <li><button id="btn-nav-nodes" class="nav-btn" onclick="showSection('shelf-view')"><i class="fas fa-project-diagram"></i> NODES</button></li>
+                <li><button id="btn-nav-data" class="nav-btn" onclick="showSection('database')"><i class="fas fa-database"></i> DATA</button></li>
+                <li style="margin-top: 20px;"><button id="btn-nav-theme" class="nav-btn" onclick="toggleTheme()"><i class="fas fa-adjust"></i> COLOR SYNC</button></li>
+                <li style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);"><button class="nav-btn" onclick="logout()" style="color: #ff4d4d;"><i class="fas fa-sign-out-alt"></i> LOGOUT</button></li>
+            </ul>
+            <div class="sidebar-footer" style="padding: 20px; font-size: 0.8rem; border-top: 1px solid var(--border); background: rgba(0,0,0,0.2);">
+                <div id="live-date"></div>
+                <div id="live-clock" style="font-family: monospace; font-size: 1.1rem; color: var(--primary);">00:00:00</div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container" id="main-container" style="display: none;">
+        
+        <section id="dashboard" class="content-section active">
+            <h1 class="glitch-text">COMMAND CENTER</h1>
+            <div class="stat-container">
+                <div class="stat-card"><span>RACK</span><h2 id="stat-racks">0</h2></div>
+                <div class="stat-card"><span>BOXES</span><h2 id="stat-boxes">0</h2></div>
+                <div class="stat-card"><span>RECORDS</span><h2 id="stat-files">0</h2></div>
+            </div>
+            
+            <div class="card-cyber sticky-module" style="margin-top: 30px;">
+                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fas fa-sticky-note"></i> NEURAL NOTES</h3>
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                    <div class="note-input-zone">
+                        <textarea id="note-text" placeholder="ENTER CORE MEMORY..." class="input-cyber" style="height: 120px; resize: none;"></textarea>
+                        <button class="btn-cyber-main" onclick="addStickyNote()" style="width: 100%;">PIN TO CORE</button>
+                    </div>
+                    <div id="sticky-notes-grid" class="notes-grid"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="shelf-view" class="content-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h1 class="glitch-text">NETWORK NODES / RACKS</h1>
+                <button class="btn-cyber-main" onclick="addNode()"><i class="fas fa-plus"></i> NEW RACK</button>
+            </div>
+            <div id="shelf-grid" class="grid-container"></div>
+        </section>
+
+        <section id="database" class="content-section">
+            <h1 class="glitch-text">GLOBAL LEDGER</h1>
+            <div class="card-cyber">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="db-search" onkeyup="filterDatabase()" placeholder="SEARCH SUBJECT..." class="input-cyber" style="margin-bottom: 0; flex-grow: 1;">
+                    <button class="btn-cyber-main" onclick="backupDatabase()"><i class="fas fa-download"></i> BACKUP</button>
+                <button class="btn-cyber-main" onclick="window.print()"><i class="fas fa-print"></i> PRINT TABLE</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="cyber-table">
+                        <thead>
+                            <tr>
+                                <th>BOX</th>
+                                <th>RACK</th>
+                                <th>FILE NO</th>
+                                <th>FILE NAME</th>
+                                <th>NAME</th>
+                                <th>FILE DATE</th>
+                                <th>ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody id="db-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="single-shelf-view" class="content-section">
+            <div style="margin-bottom: 20px;">
+                <button class="btn-cyber-main" onclick="showSection('shelf-view')">BACK TO RACKS</button>
+                <button class="btn-cyber-main" onclick="addBox()" style="margin-left: 10px;"><i class="fas fa-plus"></i> ADD BOX</button>
+            </div>
+            <h2 id="current-rack-title" class="glitch-text"></h2>
+            <div id="box-grid" class="grid-container"></div>
+        </section>
+
+        <section id="box-detail-view" class="content-section">
+            <button class="btn-cyber-main" onclick="showSection('single-shelf-view')" style="margin-bottom: 20px;">BACK TO RACK</button>
+            <h2 id="box-num-display" class="glitch-text"></h2>
+            
+            <div class="detail-grid">
+                <div class="card-cyber">
+                    <h3>COMMIT NEW RECORD</h3>
+                    <input type="text" id="file-number" placeholder="FILE NUMBER" class="input-cyber">
+                    <input type="text" id="file-name" placeholder="FILE NAME" class="input-cyber">
+                    <input type="text" id="full-name" placeholder="NAME" class="input-cyber">
+                    <label style="font-size: 0.7rem; opacity: 0.6; margin-left: 5px;">FILE DATE</label>
+                    <input type="date" id="file-date" class="input-cyber">
+                    <button class="btn-cyber-main" onclick="addFile()" style="width: 100%; margin-top: 10px;">COMMIT TO BOX</button>
+                </div>
+                <div id="current-box-list"></div>
+            </div>
+        </section>
+    </div>
+
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-box card-cyber">
+            <h3 id="modal-title" class="glitch-text">INPUT REQUIRED</h3>
+            <label id="modal-label" style="display:none; color:var(--primary); margin-bottom:5px; font-size:0.8rem;"></label>
+            <input type="text" id="modal-input" class="input-cyber" autocomplete="off">
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+                <button class="btn-cyber-main" onclick="closeModal(false)" style="background: #555;">CANCEL</button>
+                <button class="btn-cyber-main" onclick="closeModal(true)">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="transfer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:center;">
+        <div class="card-cyber" style="width:400px; max-width:90%; position:relative;">
+            <h3 id="transfer-modal-title">TRANSFER</h3>
+            <div style="margin: 20px 0;">
+                <label style="display:block; margin-bottom:5px; color:var(--primary);">TARGET RACK SHELVES</label>
+                <select id="transfer-node-select" class="input-cyber" style="width:100%; margin-bottom:15px; background:#000; color:#fff; border:1px solid var(--primary); padding:5px;"></select>
+                
+                <div id="transfer-block-wrapper">
+                    <label style="display:block; margin-bottom:5px; color:var(--primary);">TARGET BOX</label>
+                    <select id="transfer-block-select" class="input-cyber" style="width:100%; background:#000; color:#fff; border:1px solid var(--primary); padding:5px;"></select>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <button class="btn-cyber-main" onclick="closeTransferModal()" style="margin-right:10px;">CANCEL</button>
+                <button class="btn-cyber-main" onclick="confirmTransfer()">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script type="module" src="script.js"></script>
+    <script>
+        // Update live date in sidebar
+        const dateEl = document.getElementById('live-date');
+        if(dateEl) dateEl.innerText = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    </script>
+</body>
+</html>

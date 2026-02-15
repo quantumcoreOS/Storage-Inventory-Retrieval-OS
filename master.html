@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantumDB Master Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <style>
+        :root { --bg: #050505; --text: #00f2ff; --border: #333; --surface: #111; }
+        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; margin: 0; }
+        h1 { border-bottom: 2px solid var(--text); padding-bottom: 10px; }
+        .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .nav-btn { background: var(--surface); color: var(--text); border: 1px solid var(--text); padding: 10px 20px; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        .nav-btn.active, .nav-btn:hover { background: var(--text); color: #000; font-weight: bold; }
+        .controls { margin-bottom: 20px; display: flex; justify-content: space-between; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--surface); table-layout: fixed; }
+        th, td { border: 1px solid var(--border); padding: 8px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        th { background: #222; color: #fff; }
+        tr:hover { background: #222; }
+        .action-btn { background: transparent; border: none; color: var(--text); cursor: pointer; margin: 0 5px; font-size: 1.1em; }
+        .action-btn.delete { color: #ff4d4d; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: #000; border: 2px solid var(--text); padding: 20px; width: 500px; max-width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 20px rgba(0, 242, 255, 0.2); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #888; font-size: 0.8em; }
+        .form-group input, .form-group textarea { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 8px; box-sizing: border-box; font-family: monospace; }
+        .form-group input:disabled { opacity: 0.5; cursor: not-allowed; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div id="auth-interface" style="display: none; justify-content: center; align-items: center; height: 100vh; flex-direction: column;">
+        <h1 class="glitch-text" style="margin-bottom: 20px;">MASTER CONTROL ACCESS</h1>
+        <div style="background: #000; padding: 30px; width: 300px; border: 1px solid var(--text); box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);">
+            <div id="login-form">
+                <input type="text" id="master-user" placeholder="USERNAME" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #111; color: var(--text); border: 1px solid var(--border); box-sizing: border-box;">
+                 <div style="position: relative; width: 100%; margin-bottom: 10px;">
+                    <input type="password" id="master-pass" placeholder="PASSWORD" style="width: 100%; padding-right: 40px; margin-bottom: 0; padding: 10px; background: #111; color: var(--text); border: 1px solid var(--border); box-sizing: border-box;">
+                    <i class="fas fa-eye" onclick="togglePassword('master-pass', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--primary); z-index: 5;"></i>
+                </div>
+                <button class="nav-btn" onclick="handleMasterLogin()" style="width: 100%;">LOGIN</button>
+                <p style="text-align: center; font-size: 0.8em; margin-top: 15px; cursor: pointer; color: #888;" onclick="toggleMasterAuth()">REGISTER NEW UNIT</p>
+            </div>
+            <div id="register-form" style="display: none;">
+                <input type="text" id="reg-user" placeholder="NEW USERNAME" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #111; color: var(--text); border: 1px solid var(--border); box-sizing: border-box;">
+                  <div style="position: relative; width: 100%; margin-bottom: 10px;">
+                   <input type="password" id="reg-pass" placeholder="ASSIGN PASSWORD" style="width: 100%; padding-right: 40px; margin-bottom: 0; padding: 10px; background: #111; color: var(--text); border: 1px solid var(--border); box-sizing: border-box;">
+                        <i class="fas fa-eye" onclick="togglePassword('reg-pass', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--primary); z-index: 5;"></i>
+                <input type="password" id="reg-pass" placeholder="NEW PASSWORD" style="width: 100%; margin-bottom: 20px; padding: 10px; background: #111; color: var(--text); border: 1px solid var(--border); box-sizing: border-box;">
+                <button class="nav-btn" onclick="handleMasterRegister()" style="width: 100%;">REGISTER</button>
+                <p style="text-align: center; font-size: 0.8em; margin-top: 15px; cursor: pointer; color: #888;" onclick="toggleMasterAuth()">BACK TO LOGIN</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-interface" style="display: none;">
+        <h1><i class="fas fa-database"></i> QUANTUM MASTER CONTROL</h1>
+        
+        <div class="nav-bar" id="table-nav"></div>
+        
+        <div class="controls">
+            <button class="nav-btn" onclick="openModal()"><i class="fas fa-plus"></i> ADD ROW</button>
+            <div>
+                <button class="nav-btn" onclick="saveDB()"><i class="fas fa-save"></i> FORCE SAVE</button>
+                <button class="nav-btn" onclick="window.location.href='index.html'" style="border-color: #fff; color: #fff;">EXIT</button>
+            </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table id="data-table">
+                <thead id="table-head"></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="crud-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">EDIT ROW</h2>
+            <div id="modal-form"></div>
+            <div class="modal-footer">
+                <button class="nav-btn" onclick="closeModal()" style="border-color: #555; color: #888;">CANCEL</button>
+                <button class="nav-btn" onclick="submitForm()">SAVE CHANGES</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="master.js"></script>
+</body>
+</html>
