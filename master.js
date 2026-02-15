@@ -14,12 +14,22 @@ async function init() {
         SQL = await initSqlJs(config);
 
         const store = await getDBStore('readonly');
-        const savedData = await new Promise((resolve) => {
+        let savedData = await new Promise((resolve) => {
             const req = store.get(SYSTEM_CONFIG.DB.KEY);
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => resolve(null);
         });
         
+        if (!savedData) {
+            try {
+                const response = await fetch('database.db');
+                if (response.ok) {
+                    const buffer = await response.arrayBuffer();
+                    savedData = new Uint8Array(buffer);
+                }
+            } catch (e) {}
+        }
+
         if (savedData) {
             db = new SQL.Database(new Uint8Array(savedData));
             checkAuth();
@@ -119,7 +129,7 @@ function renderNav() {
     const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")[0].values.flat();
     const nav = document.getElementById('table-nav');
     nav.innerHTML = tables.map(t => 
-        `<button class="nav-btn ${t === currentTable ? 'active' : ''}" onclick="loadTable('${t}')">${t.toUpperCase()}</button>`
+        `<button class="nav-tab ${t === currentTable ? 'active' : ''}" onclick="loadTable('${t}')">${t.toUpperCase()}</button>`
     ).join('');
 }
 
