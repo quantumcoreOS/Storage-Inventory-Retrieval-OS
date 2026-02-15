@@ -71,6 +71,22 @@ async function initDatabase() {
     const config = { locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` };
     SQL = await initSqlJs(config);
     
+    // 1. Check for Cloud Share Link (Snapshot)
+    const urlParams = new URLSearchParams(window.location.search);
+    const syncId = urlParams.get('sync_id');
+    
+    if (syncId) {
+        console.log("Loading Cloud Snapshot:", syncId);
+        try {
+            const cloudData = await fetchCloudSnapshot(syncId);
+            if (cloudData) {
+                db = new SQL.Database(cloudData);
+                showNotification("CLOUD SNAPSHOT LOADED");
+                return; // Skip local loading
+            }
+        } catch (e) { console.error("Cloud Load Error", e); showNotification("LINK EXPIRED OR INVALID"); }
+    }
+
     let savedData = null;
     try {
         const store = await getDBStore('readonly');
@@ -80,6 +96,16 @@ async function initDatabase() {
             req.onerror = () => resolve(null);
         });
     } catch (e) { console.log("Initializing New DB"); }
+
+    if (!savedData) {
+        try {
+            const response = await fetch('database.db');
+            if (response.ok) {
+                const buffer = await response.arrayBuffer();
+                savedData = new Uint8Array(buffer);
+            }
+        } catch (e) {}
+    }
 
     if (savedData) {
         db = new SQL.Database(new Uint8Array(savedData));
@@ -954,6 +980,7 @@ window.handleRegister = handleRegister;
 window.toggleAuthMode = toggleAuthMode;
 window.toggleTheme = toggleTheme;
 window.togglePassword = togglePassword;
+window.handleCloudShare = handleCloudShare;
 window.logout = () => {
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('currentUser');
@@ -1115,6 +1142,69 @@ window.restoreDatabase = () => {
     };
     input.click();
 };
+
+// --- CLOUD SHARING LOGIC ---
+
+async function handleCloudShare() {
+    let apiKey = localStorage.getItem('jsonbin_key');
+    if (!apiKey) {
+        apiKey = await showInputModal("API KEY REQUIRED", "ENTER JSONBIN.IO MASTER KEY", "ONE-TIME SETUP");
+        if (apiKey) localStorage.setItem('jsonbin_key', apiKey);
+        else return;
+    }
+
+    showNotification("GENERATING LINK...");
+    
+    try {
+        const data = db.export();
+        // Convert binary DB to Base64 string for JSON storage
+        const binaryString = Array.from(data).map(b => String.fromCharCode(b)).join('');
+        const base64Data = btoa(binaryString);
+
+        const res = await fetch('https://api.jsonbin.io/v3/b', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': apiKey,
+                'X-Bin-Private': 'false' // Public so others can read it without key
+            },
+            body: JSON.stringify({
+                timestamp: new Date().toISOString(),
+                db_data: base64Data
+            })
+        });
+
+        if (!res.ok) throw new Error("Upload Failed");
+        
+        const json = await res.json();
+        const binId = json.metadata.id;
+        
+        const shareUrl = `${window.location.origin}${window.location.pathname}?sync_id=${binId}`;
+        
+        // Copy to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        
+        // Show user
+        await showInputModal("SHAREABLE LINK GENERATED", "", "LINK COPIED TO CLIPBOARD", shareUrl);
+        
+    } catch (e) {
+        console.error(e);
+        showNotification("CLOUD UPLOAD FAILED");
+        if(confirm("API Key might be invalid. Reset key?")) localStorage.removeItem('jsonbin_key');
+    }
+}
+
+async function fetchCloudSnapshot(binId) {
+    // We don't need the API Key to READ if the bin is public, or we can use a specific read key.
+    // For JSONBin, if the bin is public, no header is needed.
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`);
+    if (!res.ok) return null;
+    
+    const json = await res.json();
+    const base64Data = json.record.db_data;
+    const binaryString = atob(base64Data);
+    return new Uint8Array(binaryString.split('').map(c => c.charCodeAt(0)));
+}
 
 initApp();
 
