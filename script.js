@@ -1180,6 +1180,11 @@ async function handleCloudShare() {
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({ message: "Upload Failed" }));
+            
+            if (res.status === 401 || (err.message && err.message.includes("Master Key"))) {
+                localStorage.removeItem('jsonbin_key');
+                throw new Error("INVALID MASTER KEY. Key has been reset. Please try again.");
+            }
             throw new Error(err.message || "Upload Failed");
         }
         
@@ -1197,7 +1202,12 @@ async function handleCloudShare() {
     } catch (e) {
         console.error(e);
         showNotification("UPLOAD FAILED");
-        if(confirm(`Error: ${e.message}\n\nAPI Key might be invalid. Reset key?`)) localStorage.removeItem('jsonbin_key');
+        
+        if (localStorage.getItem('jsonbin_key')) {
+            if(confirm(`Error: ${e.message}\n\nAPI Key might be invalid. Reset key?`)) localStorage.removeItem('jsonbin_key');
+        } else {
+            alert(`ERROR: ${e.message}`);
+        }
     }
 }
 
